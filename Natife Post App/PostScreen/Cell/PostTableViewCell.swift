@@ -7,8 +7,8 @@
 
 import UIKit
 
-protocol State: AnyObject {
-    func objectStateChanged(state: Bool, object: Int)
+protocol StateDelegate: AnyObject {
+    func objectStateChanged(state: Bool, index: Int)
 }
 
 class PostTableViewCell: UITableViewCell {
@@ -20,10 +20,10 @@ class PostTableViewCell: UITableViewCell {
     @IBOutlet weak private var moreButton: UIButton!
     
     private var isOpen: Bool = false
-    private var cellId: Int?
+    private var cellIndex: Int?
     private var configuration: PostConfiguration?
     
-    weak var delegate: State?
+    weak var delegate: StateDelegate?
     
     override func awakeFromNib() {
         super.awakeFromNib()
@@ -40,17 +40,30 @@ class PostTableViewCell: UITableViewCell {
         mainTextLabel.text = configuration.text
         likesLabel.text = "❤️ \(configuration.likes)"
         dateLabel.text = timeAgoString(from: configuration.date)
-        cellId = configuration.id
+        cellIndex = configuration.index
+        isOpen = configuration.state
+        
+        if isOpen {
+            moreButton.setTitle("Hide", for: .normal)
+        } else {
+            moreButton.setTitle("More", for: .normal)
+        }
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        titleLabel.text = nil
+        mainTextLabel.text = nil
+        likesLabel.text = nil
+        dateLabel.text = nil
     }
     
     private func timeAgoString(from date: Date) -> String {
         let calendar = Calendar.current
         let currentDate = Date()
-        let components = calendar.dateComponents([.year, .month, .day], from: date, to: currentDate)
+        let components = calendar.dateComponents([.month, .day], from: date, to: currentDate)
         
         switch (components.year, components.month, components.day) {
-        case (.some(let year), _, _) where year > 0:
-            return "\(year) year\(year > 1 ? "s" : "") ago"
         case (_, .some(let month), _) where month > 0:
             return "\(month) month\(month > 1 ? "s" : "") ago"
         case (_, _, .some(let day)) where day > 0:
@@ -62,27 +75,16 @@ class PostTableViewCell: UITableViewCell {
     
     //MARK: - Actions
     @IBAction private func moreButtonPressed(_ sender: UIButton) {
-        if !isOpen {
-            if cellId == configuration?.id {
-                isOpen = true
-                UIView.animate(withDuration: 0.3) {
-                    self.mainTextLabel.numberOfLines = 0
-                    sender.setTitle("Hide", for: .normal)
-                }
-            }
-            
-        } else {
-            if cellId == configuration?.id {
+        if let id = configuration?.index {
+            if isOpen {
                 isOpen = false
-                UIView.animate(withDuration: 0.3) {
-                    self.mainTextLabel.numberOfLines = 2
-                    sender.setTitle("More", for: .normal)
-                }
+                mainTextLabel.numberOfLines = 2
+            } else {
+                isOpen = true
+                mainTextLabel.numberOfLines = 0
             }
-        }
-        
-        if let id = configuration?.id {
-            delegate?.objectStateChanged(state: true, object: id)
+            delegate?.objectStateChanged(state: isOpen, index: id)
+            print(id)
         }
     }
 }

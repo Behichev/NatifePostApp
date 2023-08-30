@@ -7,22 +7,38 @@
 
 import UIKit
 
-class AllPostsViewController: UIViewController, State {
 
+class AllPostsViewController: UIViewController {
+    
     @IBOutlet weak private var postsTableView: UITableView!
     
     private var posts: Posts?
-    private var rowHeight: CGFloat = UITableView.automaticDimension
+    private var configurationArray: [PostConfiguration] = []
     
+    //MARK: - VC Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupData()
+        delegates()
+    }
+    
+    private func setupData() {
         NetworkManager.shared.getPosts { model in
             self.posts = model
+            self.configuration()
             DispatchQueue.main.async {
                 self.postsTableView.reloadData()
             }
         }
-        delegates()
+    }
+    
+    private func configuration() {
+        guard let allPosts = posts else { return }
+        
+        configurationArray = allPosts.posts.enumerated().map({ (index, item) in
+            let date = Date(timeIntervalSince1970: TimeInterval(item.timeshamp))
+            return PostConfiguration(title: item.title, text: item.previewText, date: date, likes: item.likesCount, index: index, state: false)
+        })
     }
     
     private func delegates() {
@@ -33,53 +49,43 @@ class AllPostsViewController: UIViewController, State {
         postsTableView.register(nib, forCellReuseIdentifier: AppConstants.cellReuseIdentifier)
     }
     
-    func objectStateChanged(state: Bool, object: Int) {
-        if state {
-            rowHeight = 300
-        } else {
-            rowHeight = UITableView.automaticDimension
-        }
-    }
     
     //MARK: - Actions
     @IBAction private func sortButtonTapped(_ sender: UIBarButtonItem) {
     }
 }
 
+//MARK: - StateDelegate
+extension AllPostsViewController: StateDelegate {
+    func objectStateChanged(state: Bool, index: Int) {
+        configurationArray[index].state = state
+        self.postsTableView.reloadRows(at: [IndexPath(item: index, section: 0)], with: .automatic)
+       
+    }
+}
 //MARK: - Table View Data Source
 extension AllPostsViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        posts?.posts.count ?? 0
+        configurationArray.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         if let cell = tableView.dequeueReusableCell(withIdentifier: AppConstants.cellReuseIdentifier) as? PostTableViewCell {
-            let item = posts?.posts[indexPath.row]
-            if let item {
-                let date = Date(timeIntervalSince1970: TimeInterval(item.timeshamp))
-                let configuration = PostConfiguration(
-                    title: item.title,
-                    text: item.previewText,
-                    date: date,
-                    likes: item.likesCount,
-                    id: item.postId)
-                cell.configure(with: configuration)
-                cell.delegate = self
-            }
+            let item = configurationArray[indexPath.row]
+            cell.configure(with: item)
+            cell.delegate = self
             return cell
         }
         return UITableViewCell()
     }
-    
-    
 }
 //MARK: - Table View Delegate
 extension AllPostsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
-        return rowHeight
+        return UITableView.automaticDimension
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        //
+        
     }
 }

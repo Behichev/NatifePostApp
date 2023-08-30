@@ -12,5 +12,6 @@ struct PostConfiguration {
     let text: String
     let date: Date
     let likes: Int
-    let id: Int
+    let index: Int
+    var state: Bool
 }
